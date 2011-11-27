@@ -1,20 +1,26 @@
-CC = gcc
-CFLAGS = -I.
+CC=gcc
+CFLAGS=-I.
 
-OBJS = ./build/main.o
+SRCDIR = ./src
+ODIR = ./build
+
+_DEPS = blockcipher.h
+_OBJS = blockcipher.o main.o
+_SRC  = blockcipher.c main.c
+
+DEPS = $(patsubst %, $(SRCDIR)/%, $(_DEPS));
+OBJS = $(patsubst %, $(ODIR)/%, $(_OBJS));
+SRC  = $(patsubst %, $(SRCDIR)/%, $(_SRC));
+
+$(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 blockcipher: $(OBJS)
-	$(CC) -o $@ $(CFLAGS) $(OBJS)
+	$(CC) -o $@ $^ $(CFLAGS)
 
-./build/main.o:
-	$(CC) -c ./src/main.c
-	@mv main.o ./build/main.o
-
-.PHONY: clean clean-all 
+.PHONY: clean
 
 clean:
-	rm ./build/*
+	rm -f ./blockcipher
+	rm -f $(ODIR)/*.o
 
-clean-all:
-	rm ./build/*
-	rm blockcipher 
