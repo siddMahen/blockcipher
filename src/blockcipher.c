@@ -1,6 +1,6 @@
 #include "blockcipher.h"
 
-void blk_init(blk_ctx *ctx, u_long *key){
+void blk_init(blk_ctx *ctx, uint32_t *key){
 	int i;
 	for(i = 0; i < 8; i++) 
 		ctx->key[i] = key[i];
@@ -28,7 +28,7 @@ void blk_init(blk_ctx *ctx, u_long *key){
 	}
 }
 
-u_long blk_sub(blk_ctx *c, u_long data){
+uint32_t blk_sub(blk_ctx *c, uint32_t data){
 
 	u_char first  =  (data & 0xf0000000UL) >> 28;
 	u_char sec    =  (data & 0x0f000000UL) >> 24;
@@ -48,7 +48,7 @@ u_long blk_sub(blk_ctx *c, u_long data){
 	sev    = c->sb7[sev];
 	eight  = c->sb8[eight];
 
-	u_long final = 0x00000000UL;
+	uint32_t final = 0x00000000UL;
 	
 	final |= first  << 28;
 	final |= sec    << 24;
@@ -69,7 +69,7 @@ u_long blk_sub(blk_ctx *c, u_long data){
 	return final;
 }
 
-u_long blk_scrm(blk_ctx *c, u_long data){
+uint32_t blk_scrm(blk_ctx *c, uint32_t data){
 
 	// Optimize this
 	u_char first  = (data & 0xff000000UL) >> 24;
@@ -77,30 +77,30 @@ u_long blk_scrm(blk_ctx *c, u_long data){
 	u_char third  = (data & 0x0000ff00UL) >> 8;
 	u_char fourth = (data & 0x000000ffUL);
 
-	u_long s1 = first * c->key[0];
-	u_long s2 = sec + c->key[1];
-	u_long s3 = third + c->key[2];
-	u_long s4 = fourth * c->key[3];
+	uint32_t s1 = first * c->key[0];
+	uint32_t s2 = sec + c->key[1];
+	uint32_t s3 = third + c->key[2];
+	uint32_t s4 = fourth * c->key[3];
 
-	u_long s5 = s1 ^ s3;
-	u_long s6 = s2 ^ s4;
+	uint32_t s5 = s1 ^ s3;
+	uint32_t s6 = s2 ^ s4;
 	
-	u_long s7 = s5 * c->key[4];
-	u_long s8 = s6 + s7;
-	u_long s9 = s8 * c->key[5];
+	uint32_t s7 = s5 * c->key[4];
+	uint32_t s8 = s6 + s7;
+	uint32_t s9 = s8 * c->key[5];
 	
-	u_long s10 = s7 + s9;
+	uint32_t s10 = s7 + s9;
 	
 	// take a look at this, make sure it works
 	// incorporate the last two keys?
 	
-	u_long s11 = (s1 ^ s9) ^ (s2 ^ s10);
-	u_long s12 = (s2 ^ s9) ^ (s4 ^ s10);
+	uint32_t s11 = (s1 ^ s9) ^ (s2 ^ s10);
+	uint32_t s12 = (s2 ^ s9) ^ (s4 ^ s10);
 	
-	u_long final = (s11 ^ s12);	
+	uint32_t final = (s11 ^ s12);	
 
 	// sbox step here
-	u_long ret = blk_sub(c, final);
+	uint32_t ret = blk_sub(c, final);
 	
 	return ret;
 	
@@ -109,8 +109,8 @@ u_long blk_scrm(blk_ctx *c, u_long data){
 	//return final << 2 | final >> (32-2);
 }
 
-void blk_enc(blk_ctx *c, u_long *data){
-	register u_long r, l;
+void blk_enc(blk_ctx *c, uint32_t *data){
+	register uint32_t r, l;
 
 	l = data[0];
 	r = data[1];
@@ -132,8 +132,8 @@ void blk_enc(blk_ctx *c, u_long *data){
 	data[1] = l;
 }
 
-void blk_dec(blk_ctx *c, u_long *data){
-	register u_long r, l;
+void blk_dec(blk_ctx *c, uint32_t *data){
+	register uint32_t r, l;
 
 	l = data[0];
 	r = data[1];
