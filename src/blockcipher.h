@@ -25,7 +25,6 @@ void blk_destroy(blk_ctx *);
 void blk_dec(blk_ctx *, uint32_t *);
 void blk_enc(blk_ctx *, uint32_t *);
 
-/* Private */
+/* Internal */
 uint32_t blk_scrm(blk_ctx *, uint32_t);
 uint32_t blk_sub(blk_ctx *, uint32_t);
-

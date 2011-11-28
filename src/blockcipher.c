@@ -2,8 +2,9 @@
 
 void blk_init(blk_ctx *ctx, uint32_t *key){
 	int i;
+	// XOR with 0x0dae prevents weak keys
 	for(i = 0; i < 8; i++) 
-		ctx->key[i] = key[i];
+		ctx->key[i] = key[i] ^ 0x0dae;
 
 	// S-Boxes taken from the GOST algorithm
 	u_char sb1[16] = { 4, 10, 9, 2, 13, 8, 0, 14, 6, 11, 1, 12, 7, 15, 5, 3 };
@@ -30,14 +31,14 @@ void blk_init(blk_ctx *ctx, uint32_t *key){
 
 uint32_t blk_sub(blk_ctx *c, uint32_t data){
 
-	u_char first  =  (data & 0xf0000000UL) >> 28;
-	u_char sec    =  (data & 0x0f000000UL) >> 24;
-	u_char third  =  (data & 0x00f00000UL) >> 20;
-	u_char fourth =  (data & 0x000f0000UL) >> 16;
-	u_char fifth  =  (data & 0x0000f000UL) >> 12;
-	u_char sixth  =  (data & 0x00000f00UL) >> 8;
-	u_char sev    =  (data & 0x000000f0UL) >> 4;
-	u_char eight  =  (data & 0x0000000fUL);
+	register u_char first  =  (data & 0xf0000000UL) >> 28;
+	register u_char sec    =  (data & 0x0f000000UL) >> 24;
+	register u_char third  =  (data & 0x00f00000UL) >> 20;
+	register u_char fourth =  (data & 0x000f0000UL) >> 16;
+	register u_char fifth  =  (data & 0x0000f000UL) >> 12;
+	register u_char sixth  =  (data & 0x00000f00UL) >> 8;
+	register u_char sev    =  (data & 0x000000f0UL) >> 4;
+	register u_char eight  =  (data & 0x0000000fUL);
 
 	first  = c->sb1[first];
 	sec    = c->sb2[sec];
@@ -48,15 +49,24 @@ uint32_t blk_sub(blk_ctx *c, uint32_t data){
 	sev    = c->sb7[sev];
 	eight  = c->sb8[eight];
 
+	first  = c->sb8[first];
+	sec    = c->sb7[sec];
+	third  = c->sb6[third];
+	fourth = c->sb5[fourth];
+	fifth  = c->sb4[fifth];
+	sixth  = c->sb3[sixth];
+	sev    = c->sb2[sev];
+	eight  = c->sb1[eight];
+
 	uint32_t final = 0x00000000UL;
 	
-	final |= first  << 28;
-	final |= sec    << 24;
-	final |= third  << 20;
-	final |= fourth << 16;
-	final |= fifth  << 12;
-	final |= sixth  << 8;
-	final |= sev    << 4;
+	final |= (first  << 28);
+	final |= (sec    << 24);
+	final |= (third  << 20);
+	final |= (fourth << 16);
+	final |= (fifth  << 12);
+	final |= (sixth  << 8);
+	final |= (sev    << 4);
 	final |= eight;
 	
 	// divide the long into 4 chars,
@@ -65,13 +75,12 @@ uint32_t blk_sub(blk_ctx *c, uint32_t data){
 	// use the second set to get a 4 bit num
 	// combine the two 
 	// im thinking 8, 1x16 S boxes, like in GOST
-
+	
 	return final;
 }
 
 uint32_t blk_scrm(blk_ctx *c, uint32_t data){
 
-	// Optimize this
 	u_char first  = (data & 0xff000000UL) >> 24;
 	u_char sec    = (data & 0x00ff0000UL) >> 16;
 	u_char third  = (data & 0x0000ff00UL) >> 8;
@@ -87,26 +96,20 @@ uint32_t blk_scrm(blk_ctx *c, uint32_t data){
 	
 	uint32_t s7 = s5 * c->key[4];
 	uint32_t s8 = s6 + s7;
-	uint32_t s9 = s8 * c->key[5];
-	
+	uint32_t s9 = s8 * c->key[5];	
 	uint32_t s10 = s7 + s9;
 	
-	// take a look at this, make sure it works
-	// incorporate the last two keys?
+	// added last two keys
 	
-	uint32_t s11 = (s1 ^ s9) ^ (s2 ^ s10);
-	uint32_t s12 = (s2 ^ s9) ^ (s4 ^ s10);
-	
+	uint32_t s11 = ((s1 ^ s9) * c->key[6]) ^ (s2 ^ s10);
+	uint32_t s12 = (s2 ^ s9) ^ ((s4 ^ s10) * c->key[7]);
 	uint32_t final = (s11 ^ s12);	
 
 	// sbox step here
 	uint32_t ret = blk_sub(c, final);
 	
-	return ret;
-	
-	// any higher than 2, and it
-	// adds to much symmetry...
-	//return final << 2 | final >> (32-2);
+	//return ret;
+	return (ret >> 11) | (ret << (32 - 11));
 }
 
 void blk_enc(blk_ctx *c, uint32_t *data){
@@ -115,7 +118,6 @@ void blk_enc(blk_ctx *c, uint32_t *data){
 	l = data[0];
 	r = data[1];
 	
-	// add s-boxes!
 	r ^= blk_scrm(c, l+c->key[0]); l ^= blk_scrm(c, r+c->key[1]);
 	r ^= blk_scrm(c, l+c->key[2]); l ^= blk_scrm(c, r+c->key[3]);
 	r ^= blk_scrm(c, l+c->key[4]); l ^= blk_scrm(c, r+c->key[5]);
@@ -126,8 +128,6 @@ void blk_enc(blk_ctx *c, uint32_t *data){
 	r ^= blk_scrm(c, l+c->key[3]); l ^= blk_scrm(c, r+c->key[2]);
 	r ^= blk_scrm(c, l+c->key[1]); l ^= blk_scrm(c, r+c->key[0]);
 
-	//switch em up so on decryption this 
-	//works
 	data[0] = r;
 	data[1] = l;
 }
@@ -148,7 +148,6 @@ void blk_dec(blk_ctx *c, uint32_t *data){
 	r ^= blk_scrm(c, l+c->key[3]); l ^= blk_scrm(c, r+c->key[2]);
 	r ^= blk_scrm(c, l+c->key[1]); l ^= blk_scrm(c, r+c->key[0]);
 	
-	// right side up now...
 	data[0] = r;
 	data[1] = l;
 }
@@ -156,6 +155,5 @@ void blk_dec(blk_ctx *c, uint32_t *data){
 void blk_destroy(blk_ctx *c){
 	int i;
 	for(i = 0; i < 8; i++) 
-		c->key[i] = 0;
+		c->key[i] = 0x0;
 }
-
