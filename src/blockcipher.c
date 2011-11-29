@@ -109,7 +109,7 @@ uint32_t blk_scrm(blk_ctx *c, uint32_t data){
 	uint32_t ret = blk_sub(c, final);
 	
 	//return ret;
-	return (ret >> 11) | (ret << (32 - 11));
+	return (ret << 11) | (ret >> (32 - 11));
 }
 
 void blk_enc(blk_ctx *c, uint32_t *data){
